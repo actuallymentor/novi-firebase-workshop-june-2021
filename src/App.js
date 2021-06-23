@@ -1,7 +1,8 @@
 import './App.css'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import app from './firebase'
+const db = app.firestore()
 
 function App() {
 
@@ -10,6 +11,35 @@ function App() {
   const [ email, setEmail ] = useState( '' )
   const [ password, setPassword ] = useState( '' )
   const [ user, setUser ] = useState()
+  const [ loading, setLoading ] = useState( true )
+  const [ address, setAddress ] = useState( '' )
+
+  // Listen to the user state
+  useEffect( f => {
+
+    // Listen to user
+    console.log( 'Add user listener' )
+    app.auth().onAuthStateChanged( user => {
+      console.log( 'User changed to ', user )
+      setUser( user )
+      setLoading( false )
+    } )
+
+  }, [] )
+
+  useEffect( f => {
+
+    // No user? Exit
+    if( !user ) return
+
+    // User logged in? Get data
+    return db.collection( 'addresses' ).doc( user.email ).onSnapshot( doc => {
+      const data = doc.data()
+      setAddress( data.address )
+    } )
+
+
+  }, [ user ] )
 
   // Handle the submit
   async function onSubmit( e ) {
@@ -39,10 +69,29 @@ function App() {
 
   }
 
+  // Handle address submit
+  async function onAddressSubmit( e ) {
+
+    e.preventDefault()
+    console.log( 'Address save triggered: ', address )
+
+    await db.collection( 'addresses' ).doc( user.email ).set( {
+      address: address
+    } )
+
+  }
+
+  // Loading screen
+  if( loading ) return <main>
+    <p>🕵️‍♀️ Loading...</p>
+  </main>
+
   // There is a user logged in
   if( user ) return <main>
     
     <h1>Hello { user.email }</h1>
+    <input onChange={ e => setAddress( e.target.value ) } type="text" value={ address } placeholder="Type your address" />
+    <input onClick={ onAddressSubmit } value="save" type="submit" />
 
   </main>
 
